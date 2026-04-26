@@ -61,4 +61,4 @@ Any user can create a Telegram Bot via BotFather and receive live market updates
 ## Does it work?
 Yes. The architecture is mathematically sound, the lock-free data pipeline operates identically to institutional designs, and the circuit breakers successfully intercept signal conflicts. 
 
-**Will it make you rich?** This is an open-source architectural framework, not financial advice. If you deploy it with untested models or hallucinating LLMs, and it wipes out your portfolio, that is entirely on you. Trade at your own risk.
+**Will it make you rich?** Probably not. If you think you can deploy a Python script and an LLM to out-trade physics PhDs at Renaissance Technologies who use microwave transmission towers to shave nanoseconds off their trades... be my guest. This is an open-source architectural framework, not financial advice. If you deploy it with untested models or hallucinating LLMs, and it wipes out your portfolio, that is entirely on you. Trade at your own risk.
