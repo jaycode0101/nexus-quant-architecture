@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.hft</groupId>
+    <artifactId>hft-orchestration</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>HFT Orchestration Engine</name>
+    <description>
+        Java 21 orchestration layer for the institutional-grade HFT system.
+        Zero-allocation hot path with LMAX Disruptor, off-heap data structures,
+        Hawkes/HMM signal generation, and Chronicle Queue journaling.
+    </description>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <disruptor.version>4.0.0</disruptor.version>
+        <chronicle-queue.version>5.25.3</chronicle-queue.version>
+        <chronicle-wire.version>2.25.4</chronicle-wire.version>
+        <jmh.version>1.37</jmh.version>
+    </properties>
+
+    <dependencies>
+        <!-- LMAX Disruptor 4.x — Lock-free ring buffer for inter-thread messaging -->
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>${disruptor.version}</version>
+        </dependency>
+
+        <!-- Chronicle Queue — Memory-mapped journaling (zero-GC append) -->
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-queue</artifactId>
+            <version>${chronicle-queue.version}</version>
+        </dependency>
+
+        <!-- JMH — Java Microbenchmark Harness for latency profiling -->
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>${jmh.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>${jmh.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>
+                        <arg>--add-opens</arg>
+                        <arg>java.base/sun.misc=ALL-UNNAMED</arg>
+                        <arg>--add-opens</arg>
+                        <arg>java.base/jdk.internal.misc=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.hft.core.DisruptorPipeline</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
