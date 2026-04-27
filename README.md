@@ -5,15 +5,14 @@
 
 This is a multi-factor systematic trading bot. 
 
-## The Multi-Language Architecture
+## Architecture — what's actually connected
 
-This repository is split across three distinct technology stacks to achieve both high-frequency execution and complex strategic reasoning:
+C data plane (hft/c_data_plane)     ←—— standalone reference impl, not yet wired
+Java orchestration (hft/java_orchestration) ←—— Disruptor pipeline, not yet wired  
+Python agent (autonomous_agent.py)  ←—— what actually runs, uses yfinance + LLM
 
-1. **The C11 Data Plane (`hft/c_data_plane/`)**: Written in strict C11 (not C++) to avoid hidden compiler overhead (vtables, exceptions). This layer handles lock-free ring buffers (`spsc_ring.h`) and massive memory-mapped allocations (mmap) for zero-copy IPC. It is designed to hit deterministic, **nanosecond** latency targets on the hot path.
-2. **The Java Orchestration Engine (`hft/java_orchestration/`)**: Implements the LMAX Disruptor pattern and fixed-point mathematical models (Hawkes intensity, Hidden Markov Models) to bypass Garbage Collection (GC) and Floating-Point Unit (FPU) delays.
-3. **The Python Systematic Agent (`autonomous_agent.py`)**: The strategic brain. It handles non-latency-sensitive operations like daily feature engineering, signal aggregation, and LLM sentiment reasoning.
-
-While the Python wrapper uses standard APIs for prototyping, the underlying `hft` architecture is built for extreme speed. You are not locked into Gemini—the agent is modular enough to swap the reasoning engine for Anthropic's **Claude** or local, privacy-preserving open-source models via **Ollama**.
+The bridge between these layers is the active development area.
+SharedMemoryBridge.java exists and is correct. The Python ctypes reader is next.
 
 ## What it actually does
 
@@ -61,4 +60,4 @@ Any user can create a Telegram Bot via BotFather and receive live market updates
 ## Does it work?
 Yes. The architecture is mathematically sound, the lock-free data pipeline operates identically to institutional designs, and the circuit breakers successfully intercept signal conflicts. 
 
-**Will it make you rich?** Probably not. If you think you can deploy a Python script and an LLM to out-trade physics PhDs at Renaissance Technologies who use microwave transmission towers to shave nanoseconds off their trades... be my guest. This is an open-source architectural framework, not financial advice. If you deploy it with untested models or hallucinating LLMs, and it wipes out your portfolio, that is entirely on you. Trade at your own risk.
+**Will it make you rich?** Probably not. If you think you can deploy a Python script and an LLM to out-trade physics PhDs at Renaissance Technologies who use microwave transmission towers to shave nanoseconds off their trades... be my guest. This is an open-source architectural framework, not financial advice. If you deploy it with untested models or hallucinating LLMs, and it wipes out your portfolio, that is entirely on you. Trade at your own risk..
