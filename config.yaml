@@ -10,7 +10,7 @@ credentials:
       password: $2b$12$tXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx # hashed password
 cookie:
   expiry_days: 30
-  key: some_signature_key
+  key: ${DASHBOARD_SECRET_KEY}  # generate with: python -c "import secrets; print(secrets.token_hex(32))"
   name: trading_dashboard_cookie
 preauthorized:
   - admin@example.com 
