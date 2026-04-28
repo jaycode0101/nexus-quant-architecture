@@ -1,6 +1,6 @@
 from trading_model.analysis.market_analyzer import MarketAnalyzer
 from trading_model.analysis.news_analyzer import NewsAnalyzer
-from trading_model.config.settings import NSE_SYMBOLS
+from trading_model.config.settings import WATCHLIST
 import pandas as pd
 from datetime import datetime
 import plotly.io as pio
@@ -19,8 +19,7 @@ def main():
     market_analyzer = MarketAnalyzer()
     news_analyzer = NewsAnalyzer()
     
-    # Analyze each symbol
-    for symbol in NSE_SYMBOLS:
+    for symbol in WATCHLIST:
         print(f"\nAnalyzing {symbol}...")
         
         # Get market analysis
