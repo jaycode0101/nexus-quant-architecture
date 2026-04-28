@@ -1,207 +1,134 @@
-# Institutional-Grade High-Frequency Trading System
+# Optional Systems Track
 
-## Sub-Microsecond Tick-to-Trade Execution Infrastructure
+This directory contains the lower-level systems experiments for
+`nexus-quant-architecture`.
 
-[![C11](https://img.shields.io/badge/C-C11-blue)]()
-[![Java](https://img.shields.io/badge/Java-21-orange)]()
-[![License](https://img.shields.io/badge/License-Proprietary-red)]()
+It is not required for the Python research workflow. Keep using the Python layer
+if your work is backtesting, portfolio research, signal design, or paper
+execution on bar data.
 
----
+Use this directory when you want to study tick-level ingestion, fixed binary
+layouts, lock-free handoff, event pipelines, and microstructure features.
 
-## Architecture Overview
+## Current Shape
 
-A production-grade co-located HFT system designed for sub-microsecond execution at tier-1 exchange data centers (NYSE Mahwah, CME Aurora, Equinix NY4/LD4).
-
-**Target Performance:** P50 ≤ 705ns, P99 ≤ 800ns tick-to-trade
-
-```
-Exchange Feed ─→ Solarflare NIC (EF_VI) ─→ SIMD ITCH Parser ─→ SPSC Ring
-                                                                    │
-    Order ←-- OEG (ef_vi TX) ←-- Risk Gate ←-- Strategy ←-- Disruptor
-```
-
-### System Components
-
-| Component | Language | Core | Latency Budget |
-|-----------|----------|------|---------------|
-| Feed Handler + ITCH Parser | C11 | Core 1 (isolated) | ≤ 135ns |
-| Order Entry Gateway | C11 | Core 2 (isolated) | ≤ 100ns |
-| SPSC Ring Buffer | C11 | Shared mmap | ≤ 10ns |
-| Disruptor Producer | Java 21 | Core 4 (isolated) | ≤ 70ns |
-| LOB Reconstruction | Java 21 | Core 5 (isolated) | ≤ 80ns |
-| Hawkes + HMM Signals | Java 21 | Core 6 (isolated) | ≤ 130ns |
-| Risk Gateway (5 checks) | Java 21 | Core 7 (isolated) | ≤ 150ns |
-| SBE Order Construction | Java 21 | Core 8 (isolated) | ≤ 40ns |
-
----
-
-## Directory Structure
-
-```
+```text
 hft/
-├-- README.md                          ← You are here
-├-- docs/
-│   ├-- architecture.md                ← Mermaid diagrams, NUMA topology
-│   ├-- quantitative_models.md         ← Hawkes, HMM, OBI derivations
-│   └-- calibration_ops.md             ← Calibration pipeline, latency budget
-├-- c_data_plane/
-│   ├-- CMakeLists.txt                 ← Build: cmake + make
-│   ├-- include/
-│   │   ├-- platform.h                 ← Cross-platform abstraction (EF_VI stubs)
-│   │   ├-- md_event.h                 ← 64-byte cache-line-aligned MdEvent struct
-│   │   ├-- spsc_ring.h               ← Lock-free SPSC ring buffer
-│   │   ├-- itch_parser.h             ← ITCH 5.0 parser API
-│   │   ├-- ef_vi_receiver.h          ← Kernel-bypass receiver API
-│   │   └-- order_entry_gateway.h     ← OEG API
-│   └-- src/
-│       ├-- itch_parser.c             ← AVX2 SIMD ITCH parser
-│       ├-- ef_vi_receiver.c          ← EF_VI poll loop + DMA management
-│       ├-- order_entry_gateway.c     ← SBE template patch + TX
-│       └-- main.c                    ← Integration demo
-├-- java_orchestration/
-│   ├-- pom.xml                        ← Maven (Disruptor 4.x, Chronicle Queue)
-│   └-- src/main/java/com/hft/
-│       ├-- core/
-│       │   ├-- MdEvent.java           ← Off-heap flyweight (Unsafe)
-│       │   ├-- DisruptorPipeline.java ← LMAX Disruptor wiring
-│       │   └-- SharedMemoryBridge.java ← C→Java mmap bridge
-│       ├-- lob/
-│       │   └-- LOBReconstructionHandler.java ← Off-heap order book
-│       ├-- signal/
-│       │   ├-- FeatureVector.java     ← Pre-allocated feature container
-│       │   ├-- HawkesIntensityEstimator.java ← O(1) recursive update
-│       │   ├-- HMMRegimeFilter.java   ← Log-domain forward algorithm
-│       │   └-- SignalGenerationHandler.java ← Composite signal pipeline
-│       ├-- risk/
-│       │   └-- PreTradeRiskGateway.java ← Lock-free atomic risk gate
-│       ├-- oeg/
-│       │   └-- OrderConstructor.java  ← SBE template patch (Unsafe)
-│       ├-- journal/
-│       │   ├-- ChronicleJournal.java  ← Zero-alloc journaling
-│       │   └-- PositionRecovery.java  ← Crash recovery
-│       ├-- config/
-│       │   └-- SystemConfig.java      ← JVM flags, core assignments
-│       └-- benchmark/
-│           └-- RiskGateBenchmark.java ← JMH latency harness
-└-- scripts/
-    ├-- jvm_startup.sh                 ← Production JVM launch
-    ├-- cpu_affinity.sh                ← Core isolation + IRQ steering
-    ├-- huge_pages.sh                  ← Huge page pre-allocation
-    └-- network_tuning.sh             ← NIC optimization
+  c_data_plane/
+    include/
+      md_event.h        - normalized event layout
+      spsc_ring.h       - single-producer/single-consumer ring buffer
+      itch_parser.h     - feed parser interface
+    src/
+      main.c            - local integration demo
+      itch_parser.c     - parser implementation
+      ef_vi_receiver.c  - receiver abstraction and stubs
+
+  java_orchestration/
+    src/main/java/com/hft/
+      core/             - event flyweight and shared-memory bridge
+      lob/              - order book reconstruction
+      signal/           - Hawkes intensity and HMM regimes
+      risk/             - pre-trade risk gate experiments
+      benchmark/        - JMH latency harness
 ```
 
----
+## Design Intent
 
-## Build Instructions
+The systems track models a split trading architecture:
 
-### C Data Plane
+```text
+feed adapter -> C11 normalizer -> shared ring -> Java event pipeline
+                                                |
+                                                v
+                                      Python strategy layer
+```
+
+The boundary is the point. Python should not care whether a feature came from a
+CSV file, a broker feed, or the C11/Java path. It should receive normalized
+market events and produce strategy decisions through the same interface.
+
+## C11 Data Plane
+
+The C layer is used for:
+
+- stable binary layouts
+- cache-aware event structs
+- single-producer/single-consumer ring-buffer experiments
+- feed-parser experiments behind adapter interfaces
+- deterministic handoff into shared memory
+
+This is where low-level mechanics belong. It is intentionally kept away from
+research code.
+
+## Java Orchestration
+
+The Java layer is used for:
+
+- LMAX Disruptor-style event sequencing
+- order book reconstruction
+- Hawkes process intensity updates
+- HMM regime filtering
+- pre-trade risk gate experiments
+- JMH benchmarks
+
+The Java code is the event-processing layer, not the place to write portfolio
+research notebooks.
+
+## Build
+
+### C11
 
 ```bash
 cd hft/c_data_plane
-mkdir build && cd build
-
-# Development (stub EF_VI, any platform)
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j$(nproc)
-./hft_demo
-
-# Production (real Solarflare SDK, Linux only)
-cmake -DCMAKE_BUILD_TYPE=Release -DEFVI_PRODUCTION=ON ..
-make -j$(nproc)
+cmake -B build
+cmake --build build
 ```
 
-### Java Orchestration
+### Java
 
 ```bash
 cd hft/java_orchestration
+mvn test
+```
 
-# Compile
-mvn clean compile
+### Benchmarks
 
-# Package (includes dependencies)
-mvn clean package -DskipTests
-
-# Run JMH benchmarks
-mvn clean install
+```bash
+cd hft/java_orchestration
+mvn -DskipTests package
 java -jar target/benchmarks.jar
 ```
 
----
+Benchmark numbers should only be published with:
 
-## Key Design Decisions
+- commit hash
+- compiler/runtime versions
+- hardware summary
+- warmup settings
+- sample count
+- p50/p95/p99 latency
+- notes about what was measured
 
-### Why C for the Data Plane?
+Numbers without methodology are just decoration.
 
-The feed handler and OEG require:
-- **Zero-copy packet access** via EF_VI's DMA buffer model
-- **SIMD intrinsics** (AVX2/AVX-512) for ITCH parsing
-- **Deterministic memory layout** — no GC, no JIT, predictable cache behavior
-- **Kernel bypass** — EF_VI is a C API; JNI overhead would negate the benefit
+## Integration Status
 
-### Why Java for Orchestration?
+The goal is:
 
-- **LMAX Disruptor** is a Java library (the canonical implementation)
-- **Chronicle Queue** is a Java library
-- **Mechanical sympathy** is achievable with `sun.misc.Unsafe` + off-heap allocation
-- **JIT compilation** (C2) produces code competitive with hand-tuned C for business logic
-- **Development velocity** — faster iteration on strategy/risk logic
+```text
+C11 normalized event -> Java bridge/enrichment -> Python shared-memory reader
+```
 
-### Why Not C++ Everywhere?
+The Python strategy layer should then treat microstructure signals like any
+other feature source.
 
-- Lock-free data structures in C++ require careful attention to object lifetimes
-- `std::atomic` semantics are correct but the standard library containers (map, vector) allocate
-- The Disruptor pattern is more naturally expressed in Java with its managed-but-controllable memory model
-- The team's core competency spans both — we use each where it excels
-
-### Memory Ordering: Why Acquire-Release, Not Sequential Consistency?
-
-The SPSC ring buffer uses `acquire-release` ordering (not `seq_cst`) because:
-1. **SPSC topology** — exactly one writer per index, so total store order is irrelevant
-2. **No third-party observer** — no thread reads both head AND tail and requires consistency between them
-3. **Performance** — `seq_cst` emits an `MFENCE` on x86 (~20-50 cycles); `release` is free (x86 stores are inherently ordered)
-
----
-
-## Quantitative Models
-
-| Model | Purpose | Complexity | Reference |
-|-------|---------|-----------|-----------|
-| Hawkes Process | Trade intensity / toxicity detection | O(1) per trade | Hawkes (1971), Bacry et al. (2015) |
-| Order Book Imbalance | Directional pressure prediction | O(1) per LOB update | Cont et al. (2014) |
-| Micro-Price | True price estimation | O(1) per LOB update | Stoikov (2010) |
-| HMM Regime Filter | Momentum vs. mean-revert classification | O(1) per event | Baum-Welch (1970) |
-| Avellaneda-Stoikov | Inventory-penalized quoting | Offline calibration | Avellaneda & Stoikov (2008) |
-
-Full derivations: [`docs/quantitative_models.md`](docs/quantitative_models.md)
-
----
-
-## Production Deployment
-
-1. **Hardware:** Dual Intel Xeon Ice Lake-SP, Solarflare SFN8522, 128GB DDR4
-2. **OS:** Linux 5.15+ with `isolcpus`, `nohz_full`, `rcu_nocbs`
-3. **Pre-flight:**
-   ```bash
-   sudo ./scripts/huge_pages.sh
-   sudo ./scripts/cpu_affinity.sh
-   sudo ./scripts/network_tuning.sh enp1s0f0
-   ```
-4. **Start C feed handler** (Core 1)
-5. **Start Java orchestration** (Cores 4-8, 10-13, 15):
-   ```bash
-   ./scripts/jvm_startup.sh
-   ```
-6. **Monitor:** Prometheus + Grafana dashboards via telemetry tailer
-
----
+Until the end-to-end bridge has tests, this systems path is experimental.
 
 ## References
 
-- Hawkes, A.G. (1971). "Spectra of some self-exciting and mutually exciting point processes." *Biometrika*
-- Glosten, L.R. & Milgrom, P.R. (1985). "Bid, ask and transaction prices." *Journal of Financial Economics*
-- Kyle, A.S. (1985). "Continuous auctions and insider trading." *Econometrica*
-- Avellaneda, M. & Stoikov, S. (2008). "High-frequency trading in a limit order book." *Quantitative Finance*
-- Cont, R., Kukanov, A., & Stoikov, S. (2014). "The price impact of order book events." *Journal of Financial Econometrics*
-- Almgren, R. & Chriss, N. (2001). "Optimal execution of portfolio transactions." *Journal of Risk*
-- LMAX Exchange. "Disruptor: High-Performance Inter-Thread Messaging." *lmax-exchange.github.io/disruptor*
-- Solarflare Communications. "EF_VI User Guide." *Xilinx/AMD*
+- LMAX Disruptor pattern for event pipelines
+- Hawkes processes for self-exciting market events
+- Hidden Markov Models for regime classification
+- Avellaneda-Stoikov quoting for inventory-aware market making
+- SPSC ring buffers for bounded single-writer/single-reader handoff
