@@ -7,8 +7,8 @@ This is a multi-factor systematic trading bot.
 
 ## Architecture — what's actually connected
 
-C data plane (hft/c_data_plane)     ←—— standalone reference impl, not yet wired
-Java orchestration (hft/java_orchestration) ←—— Disruptor pipeline, not yet wired  
+C data plane (c_data_plane)     ←—— standalone reference impl, not yet wired
+Java orchestration (java_orchestration) ←—— Disruptor pipeline, not yet wired  
 Python agent (autonomous_agent.py)  ←—— what actually runs, uses yfinance + LLM
 
 The bridge between these layers is the active development area.
