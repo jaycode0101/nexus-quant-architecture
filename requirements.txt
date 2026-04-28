@@ -7,3 +7,6 @@ python-dotenv
 rich
 feedparser
 scipy
+anthropic
+openai
+groq
