@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/jaycode0101/nexus-quant-architecture/workflows/CI/badge.svg)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
-![License MIT](https://img.shields.io/badge/license-MIT-green.svg)
+![License Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
 A systematic trading framework built for quantitative researchers and developers.
 It supports equities, crypto, forex, futures, and ETFs across any venue reachable
@@ -254,4 +254,4 @@ docs: explain Python-only and systems-track workflows
 
 ## License
 
-MIT.
+Apache License 2.0. See `LICENSE`.
