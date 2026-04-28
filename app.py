@@ -2,7 +2,7 @@ import streamlit as st
 
 # Page config must be the first Streamlit command
 st.set_page_config(
-    page_title="Indian Stock Market Analysis",
+    page_title="Quant Research Dashboard",
     page_icon="📈",
     layout="wide"
 )
@@ -61,7 +61,7 @@ st.markdown("---")
 st.markdown("""
     <div style='text-align: center'>
         <p>Built with ❤️ using Streamlit</p>
-        <p>Data provided by Yahoo Finance</p>
+        <p>Data source depends on your configured provider</p>
         <p>Disclaimer: This is not financial advice. Please do your own research before trading.</p>
     </div>
 """, unsafe_allow_html=True) 
