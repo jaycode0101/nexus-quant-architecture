@@ -1,6 +1,7 @@
 # Environment variables (API keys, secrets)
 .env
 .env.*
+!.env.example
 
 # Python caches and compiled files
 __pycache__/
@@ -22,3 +23,6 @@ env/
 .idea/
 .vscode/
 *.swp
+
+# Build artifacts
+build/
